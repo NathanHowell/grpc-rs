@@ -15,9 +15,9 @@ grpcio-sys = { path = "../grpc-sys", version = "0.7" }
 libc = "0.2"
 futures = "0.3"
 futures-timer = "3.0"
-protobuf = { version = "2.0", optional = true }
+protobuf = { version = "2", optional = true }
 prost = { version = "0.6", optional = true }
-bytes = { version = "0.5", optional = true }
+bytes = { version = "0.6", optional = true }
 log = "0.4"
 grpcio = { path = "..", version = "0.7", default-features = false, features = ["secure"] }
 
@@ -27,11 +27,11 @@ serde = "1.0"
 serde_derive = "1.0"
 grpcio-proto = { path = "../proto", version = "0.6.0", default-features = false }
 rand = "0.7"
-slog = "2.0"
-slog-async = "2.1"
-slog-stdlog = "4.0"
-slog-scope = "4.0"
-slog-term = "2.2"
+slog = "2.5"
+slog-async = "2.5"
+slog-stdlog = "4.1"
+slog-scope = "4.3"
+slog-term = "2.6"
 
 [[example]]
 name = "route_guide_client"

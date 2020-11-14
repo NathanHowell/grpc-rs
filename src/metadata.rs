@@ -6,6 +6,7 @@ use std::mem::ManuallyDrop;
 use std::{mem, slice, str};
 
 use crate::error::{Error, Result};
+use std::convert::TryInto;
 
 fn normalize_key(key: &str, binary: bool) -> Result<Cow<'_, str>> {
     if key.is_empty() {
@@ -91,9 +92,9 @@ impl MetadataBuilder {
             grpc_sys::grpcwrap_metadata_array_add(
                 &mut self.arr.0,
                 key.as_ptr() as _,
-                key.len(),
+                key.len().try_into().unwrap(),
                 value.as_ptr() as _,
-                value.len(),
+                value.len().try_into().unwrap(),
             )
         }
         Ok(self)
@@ -144,7 +145,7 @@ impl Metadata {
     fn with_capacity(cap: usize) -> Metadata {
         unsafe {
             let mut arr = mem::MaybeUninit::uninit();
-            grpc_sys::grpcwrap_metadata_array_init(arr.as_mut_ptr(), cap);
+            grpc_sys::grpcwrap_metadata_array_init(arr.as_mut_ptr(), cap.try_into().unwrap());
             Metadata(arr.assume_init())
         }
     }
@@ -152,7 +153,7 @@ impl Metadata {
     /// Returns the count of metadata entries.
     #[inline]
     pub fn len(&self) -> usize {
-        self.0.count
+        self.0.count.try_into().unwrap()
     }
 
     /// Returns true if there is no metadata entries.
@@ -165,13 +166,16 @@ impl Metadata {
     ///
     /// `None` is returned if out of bound.
     pub fn get(&self, index: usize) -> Option<(&str, &[u8])> {
+        let index = index.try_into().unwrap();
         if self.0.count <= index {
             return None;
         }
         let (mut key_len, mut val_len) = (0, 0);
         unsafe {
             let key = grpc_sys::grpcwrap_metadata_array_get_key(&self.0, index, &mut key_len);
+            let key_len = key_len.try_into().unwrap();
             let val = grpc_sys::grpcwrap_metadata_array_get_value(&self.0, index, &mut val_len);
+            let val_len = val_len.try_into().unwrap();
             let key_str = str::from_utf8_unchecked(slice::from_raw_parts(key as _, key_len));
             let val_bytes = slice::from_raw_parts(val as *const u8, val_len);
             Some((key_str, val_bytes))
@@ -198,7 +202,7 @@ impl Metadata {
     /// to perform the cleanup.
     pub fn into_raw_parts(self) -> (*mut grpc_metadata, usize, usize) {
         let s = ManuallyDrop::new(self);
-        (s.0.metadata, s.0.count, s.0.capacity)
+        (s.0.metadata, s.0.count.try_into().unwrap(), s.0.capacity.try_into().unwrap())
     }
 
     /// Creates a Metadata directly from the raw components of another vector.
@@ -209,8 +213,8 @@ impl Metadata {
     /// and only convert once.
     pub unsafe fn from_raw_parts(p: *mut grpc_metadata, len: usize, cap: usize) -> Metadata {
         Metadata(grpc_metadata_array {
-            count: len,
-            capacity: cap,
+            count: len.try_into().unwrap(),
+            capacity: cap.try_into().unwrap(),
             metadata: p,
         })
     }
@@ -257,7 +261,8 @@ impl<'a> Iterator for MetadataIter<'a> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remain = self.data.0.count - self.index;
+        let count: usize = self.data.0.count.try_into().unwrap();
+        let remain = count - self.index;
         (remain, Some(remain))
     }
 }

@@ -25,6 +25,7 @@ pub use crate::grpc_sys::{
     grpc_compression_algorithm as CompressionAlgorithms,
     grpc_compression_level as CompressionLevel, grpc_connectivity_state as ConnectivityState,
 };
+use std::convert::TryInto;
 
 /// Ref: http://www.grpc.io/docs/guides/wire.html#user-agents
 fn format_user_agent_string(agent: &str) -> CString {
@@ -393,8 +394,9 @@ impl ChannelBuilder {
     /// Build `ChannelArgs` from the current configuration.
     #[allow(clippy::useless_conversion)]
     pub fn build_args(&self) -> ChannelArgs {
-        let args = unsafe { grpc_sys::grpcwrap_channel_args_create(self.options.len()) };
+        let args = unsafe { grpc_sys::grpcwrap_channel_args_create(self.options.len().try_into().unwrap()) };
         for (i, (k, v)) in self.options.iter().enumerate() {
+            let i = i.try_into().unwrap();
             let key = k.as_ptr() as *const c_char;
             match *v {
                 Options::Integer(val) => unsafe {
@@ -640,7 +642,7 @@ impl Channel {
                 0,
                 cq,
                 method_ptr as *const _,
-                method_len,
+                method_len.try_into().unwrap(),
                 ptr::null(),
                 0,
                 timeout,

@@ -2,6 +2,7 @@
 
 use grpcio_sys::*;
 use std::cell::UnsafeCell;
+use std::convert::TryInto;
 use std::ffi::{c_void, CStr, CString};
 use std::fmt::{self, Debug, Formatter};
 use std::io::{self, BufRead, Read};
@@ -23,7 +24,7 @@ impl GrpcSlice {
     pub fn len(&self) -> usize {
         unsafe {
             if !self.0.refcount.is_null() {
-                self.0.data.refcounted.length
+                self.0.data.refcounted.length.try_into().unwrap()
             } else {
                 self.0.data.inlined.length as usize
             }
@@ -35,7 +36,7 @@ impl GrpcSlice {
         unsafe {
             if !self.0.refcount.is_null() {
                 let start = self.0.data.refcounted.bytes;
-                let len = self.0.data.refcounted.length;
+                let len = self.0.data.refcounted.length.try_into().unwrap();
                 std::slice::from_raw_parts(start, len)
             } else {
                 let len = self.0.data.inlined.length;
@@ -53,7 +54,7 @@ impl GrpcSlice {
     /// Same as `From<&[u8]>` but without copying the buffer.
     #[inline]
     pub fn from_static_slice(s: &'static [u8]) -> GrpcSlice {
-        GrpcSlice(unsafe { grpc_slice_from_static_buffer(s.as_ptr() as _, s.len()) })
+        GrpcSlice(unsafe { grpc_slice_from_static_buffer(s.as_ptr() as _, s.len().try_into().unwrap()) })
     }
 
     /// Creates a `GrpcSlice` from static rust str.
@@ -88,9 +89,9 @@ impl GrpcSlice {
                 cap,
             )
         } else {
-            *self = GrpcSlice(grpcio_sys::grpc_slice_malloc_large(cap));
+            *self = GrpcSlice(grpcio_sys::grpc_slice_malloc_large(cap.try_into().unwrap()));
             let start = self.0.data.refcounted.bytes;
-            let len = self.0.data.refcounted.length;
+            let len = self.0.data.refcounted.length.try_into().unwrap();
             std::slice::from_raw_parts_mut(start as *mut MaybeUninit<u8>, len)
         }
     }
@@ -148,7 +149,8 @@ impl PartialEq<GrpcSlice> for GrpcSlice {
     }
 }
 
-unsafe extern "C" fn drop_vec(ptr: *mut c_void, len: usize) {
+unsafe extern "C" fn drop_vec(ptr: *mut c_void, len: u64) {
+    let len = len.try_into().unwrap();
     Vec::from_raw_parts(ptr as *mut u8, len, len);
 }
 
@@ -164,7 +166,7 @@ impl From<Vec<u8>> for GrpcSlice {
 
         if v.len() == v.capacity() {
             let slice = unsafe {
-                grpcio_sys::grpc_slice_new_with_len(v.as_mut_ptr() as _, v.len(), Some(drop_vec))
+                grpcio_sys::grpc_slice_new_with_len(v.as_mut_ptr() as _, v.len().try_into().unwrap(), Some(drop_vec))
             };
             mem::forget(v);
             return GrpcSlice(slice);
@@ -173,7 +175,7 @@ impl From<Vec<u8>> for GrpcSlice {
         unsafe {
             GrpcSlice(grpcio_sys::grpc_slice_from_copied_buffer(
                 v.as_mut_ptr() as _,
-                v.len(),
+                v.len().try_into().unwrap(),
             ))
         }
     }
@@ -206,7 +208,7 @@ impl From<CString> for GrpcSlice {
 impl From<&'_ [u8]> for GrpcSlice {
     #[inline]
     fn from(s: &'_ [u8]) -> GrpcSlice {
-        GrpcSlice(unsafe { grpc_slice_from_copied_buffer(s.as_ptr() as _, s.len()) })
+        GrpcSlice(unsafe { grpc_slice_from_copied_buffer(s.as_ptr() as _, s.len().try_into().unwrap()) })
     }
 }
 
@@ -253,7 +255,7 @@ impl<'a> From<&'a [GrpcSlice]> for GrpcByteBuffer {
         unsafe {
             let s = slice.as_ptr() as *const grpc_slice as *const UnsafeCell<grpc_slice>;
             // hack: see From<&GrpcSlice>.
-            GrpcByteBuffer(grpc_raw_byte_buffer_create((*s).get(), len))
+            GrpcByteBuffer(grpc_raw_byte_buffer_create((*s).get(), len.try_into().unwrap()))
         }
     }
 }
@@ -327,7 +329,7 @@ impl GrpcByteBufferReader {
                 reader: reader.assume_init(),
                 slice: ManuallyDrop::new(GrpcSlice(s.assume_init())),
                 offset: 0,
-                remain,
+                remain: remain.try_into().unwrap(),
             }
         }
     }

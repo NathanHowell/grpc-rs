@@ -21,6 +21,7 @@ use crate::codec::{DeserializeFn, Marshaller, SerializeFn};
 use crate::error::{Error, Result};
 use crate::grpc_sys::grpc_status_code::*;
 use crate::task::{self, BatchFuture, BatchType, CallTag};
+use std::convert::TryInto;
 
 /// An gRPC status code structure.
 /// This type contains constants for all gRPC status codes.
@@ -225,7 +226,7 @@ impl BatchContext {
                     self.ctx,
                     &mut details_len,
                 );
-                let details_slice = slice::from_raw_parts(details_ptr as *const _, details_len);
+                let details_slice = slice::from_raw_parts(details_ptr as *const _, details_len.try_into().unwrap());
                 Some(String::from_utf8_lossy(details_slice).into_owned())
             }
         };
@@ -366,7 +367,7 @@ impl Call {
                 ctx,
                 status.status.into(),
                 details_ptr,
-                details_len,
+                details_len.try_into().unwrap(),
                 ptr::null_mut(),
                 send_empty_metadata,
                 payload_p,
@@ -400,7 +401,7 @@ impl Call {
                 batch_ptr,
                 status.status.into(),
                 details_ptr,
-                details_len,
+                details_len.try_into().unwrap(),
                 ptr::null_mut(),
                 1,
                 ptr::null_mut(),

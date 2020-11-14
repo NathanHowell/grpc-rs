@@ -27,6 +27,7 @@ use crate::error::{Error, Result};
 use crate::metadata::Metadata;
 use crate::server::{BoxHandler, RequestCallContext};
 use crate::task::{BatchFuture, CallTag, Executor, Kicker};
+use std::convert::TryInto;
 
 pub struct Deadline {
     spec: gpr_timespec,
@@ -134,14 +135,14 @@ impl RequestContext {
         let mut len = 0;
         let method = unsafe { grpc_sys::grpcwrap_request_call_context_method(self.ctx, &mut len) };
 
-        unsafe { slice::from_raw_parts(method as _, len) }
+        unsafe { slice::from_raw_parts(method as _, len.try_into().unwrap()) }
     }
 
     fn host(&self) -> &[u8] {
         let mut len = 0;
         let host = unsafe { grpc_sys::grpcwrap_request_call_context_host(self.ctx, &mut len) };
 
-        unsafe { slice::from_raw_parts(host as _, len) }
+        unsafe { slice::from_raw_parts(host as _, len.try_into().unwrap()) }
     }
 
     fn deadline(&self) -> Deadline {

@@ -11,6 +11,7 @@ use crate::grpc_sys::{
     self, grpc_channel_credentials, grpc_server_credentials,
     grpc_ssl_client_certificate_request_type, grpc_ssl_server_certificate_config,
 };
+use std::convert::TryInto;
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -175,7 +176,7 @@ impl ServerCredentialsBuilder {
         let cfg = grpcio_sys::grpc_ssl_server_certificate_config_create(
             root_cert,
             self.key_cert_pairs.as_ptr(),
-            self.key_cert_pairs.len(),
+            self.key_cert_pairs.len().try_into().unwrap(),
         );
         if !root_cert.is_null() {
             CString::from_raw(root_cert);

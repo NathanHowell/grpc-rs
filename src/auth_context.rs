@@ -1,6 +1,7 @@
 //! API for authenticating peer
 //! Based on https://grpc.github.io/grpc/core/md_doc_server_side_auth.html
 
+use std::convert::TryInto;
 use std::ffi::CStr;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
@@ -129,7 +130,7 @@ impl<'a> AuthProperty<'a> {
 
     pub fn value(&self) -> &'a [u8] {
         unsafe {
-            std::slice::from_raw_parts((*self.prop).value as *const u8, (*self.prop).value_length)
+            std::slice::from_raw_parts((*self.prop).value as *const u8, (*self.prop).value_length.try_into().unwrap())
         }
     }
 

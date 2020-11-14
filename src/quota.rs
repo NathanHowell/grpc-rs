@@ -3,6 +3,7 @@
 use crate::grpc_sys::{self, grpc_resource_quota};
 use std::ffi::CString;
 use std::ptr;
+use std::convert::TryInto;
 
 /// ResourceQuota represents a bound on memory and thread usage by the gRPC.
 /// NOTE: The management of threads created in grpc-core don't use ResourceQuota.
@@ -31,7 +32,7 @@ impl ResourceQuota {
 
     /// Resize this ResourceQuota to a new memory size.
     pub fn resize_memory(self, new_size: usize) -> ResourceQuota {
-        unsafe { grpc_sys::grpc_resource_quota_resize(self.raw, new_size) };
+        unsafe { grpc_sys::grpc_resource_quota_resize(self.raw, new_size.try_into().unwrap()) };
         self
     }
 
